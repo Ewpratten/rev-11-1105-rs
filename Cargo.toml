@@ -5,6 +5,7 @@ authors = ["Evan Pratten <ewpratten@gmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
 readme = "README.md"
+description = "Platform-agnostic Rust definitions for the Rev Robotics REV-11-1105 Blinkin LED Driver"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
