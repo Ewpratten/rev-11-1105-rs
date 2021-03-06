@@ -1,8 +1,25 @@
+//! Definitions for the various output modes used by the [rev-11-1105](https://www.revrobotics.com/rev-11-1105/) LED driver
+//!
+//! This crate only provides the transcribed output values, not any PWM implementation. 
+//! The user is expected to use this crate with something that implements 
+//! [`embedded-hal`](https://github.com/rust-embedded/embedded-hal) for actual output
+//!
+//! All data in this crate has been directly transposed from the [datasheet](https://www.revrobotics.com/content/docs/REV-11-1105-UM.pdf)'s color table.
+
 #![no_std]
 
 extern crate num;
 use num::{Num, NumCast};
 
+/// Expression of each valid driver colour mode as a value from `0..200`.
+///
+/// Values are expressed in this range so they can be converted back to their 
+/// float form when used (since enums can not store `f32` types in a useful way)
+///
+/// These values are not intended to be passes directly to a PWM output, but to 
+/// be converted to the correct duty cycle format before use
+///
+/// These values are transcribed from the [user manual](https://www.revrobotics.com/content/docs/REV-11-1105-UM.pdf)
 #[derive(Debug, Clone, Copy)]
 pub enum Pattern {
     Rainbow = 1,
@@ -106,15 +123,45 @@ pub enum Pattern {
 }
 
 impl Pattern {
+
+    /// Get the pattern duty cycle as a percentage value from `-1.0` to `1.0`
     pub fn as_percentage(&self) -> f32 {
         return ((*self as u8) as f32 - 100.0) / 100.0;
     }
 
+    /// Get the pattern duty cycle as a percentage value from `0.0` to `1.0`
     pub fn as_abs_percentage(&self) -> f32 {
         return (self.as_percentage() + 1.0) / 2.0;
     }
 
+    /// Get the pattern duty cycle as a value from `0` to `max_duty`.
+    ///
+    /// The `max_duty` should be the output of [`embedded_hal::PwmPin::get_max_duty()`](https://docs.rs/embedded-hal/0.2.4/embedded_hal/trait.PwmPin.html#tymethod.get_max_duty)
     pub fn as_duty<T: Num + NumCast + PartialOrd + Copy>(&self, max_duty: T) -> T {
-        return max_duty * NumCast::from(self.as_abs_percentage()).unwrap();
+        let max_as_float: f32 = NumCast::from(max_duty).unwrap();
+        return (max_duty / max_duty)
+            * NumCast::from(self.as_abs_percentage() * max_as_float).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn as_percentage_test() {
+        assert_eq!(Pattern::FireMedium.as_percentage(), -0.59);
+        assert_eq!(Pattern::Aqua.as_percentage(), 0.81);
+    }
+
+    #[test]
+    fn as_abs_percentage_test() {
+        assert_eq!(Pattern::Color1Larson.as_abs_percentage(), 0.495);
+        assert_eq!(Pattern::Color1Chase.as_abs_percentage(), 0.505);
+    }
+
+    #[test]
+    fn as_duty_test() {
+        assert_eq!(Pattern::Color1Larson.as_duty(u8::MAX), 126);
     }
 }
